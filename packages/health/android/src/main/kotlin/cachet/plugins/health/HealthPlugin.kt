@@ -1360,6 +1360,11 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         return typesBuilder.build()
     }
 
+    private fun isHealthConnectAvailable(call: MethodCall, result: Result) {
+        checkAvailability()
+        result?.success(healthConnectAvailable)
+    }
+
     private fun hasPermissions(call: MethodCall, result: Result) {
         if (useHealthConnectIfAvailable && healthConnectAvailable) {
             hasPermissionsHC(call, result)
@@ -1565,6 +1570,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
             "writeBloodPressure" -> writeBloodPressure(call, result)
             "writeBloodOxygen" -> writeBloodOxygen(call, result)
             "writeMeal" -> writeMeal(call, result)
+            "isHealthConnectAvailable" -> isHealthConnectAvailable(call, result)
             else -> result.notImplemented()
         }
     }
