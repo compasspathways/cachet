@@ -1744,6 +1744,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         val endTime = Instant.ofEpochMilli(call.argument<Long>("endTime")!!)
         val healthConnectData = mutableListOf<Map<String, Any?>>()
         scope.launch {
+            try {
             MapToHCType[dataType]?.let { classType ->
                 val records = mutableListOf<Record>()
 
@@ -1855,7 +1856,14 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                 }
             }
             Handler(context!!.mainLooper).run { result.success(healthConnectData) }
-        }
+            } catch (e: Exception) {
+                Log.i(
+                    "FLUTTER_HEALTH::ERROR",
+                    "Unable to return $dataType due to the following exception:"
+                )
+                Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
+                result.success(null)
+            }
     }
 
     fun convertRecordStage(stage: SleepSessionRecord.Stage, dataType: String, sourceName: String):
