@@ -1745,117 +1745,115 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
         val healthConnectData = mutableListOf<Map<String, Any?>>()
         scope.launch {
             try {
-            MapToHCType[dataType]?.let { classType ->
-                val records = mutableListOf<Record>()
+                MapToHCType[dataType]?.let { classType ->
+                    val records = mutableListOf<Record>()
 
-                // Set up the initial request to read health records with specified parameters
-                var request = ReadRecordsRequest(
-                    recordType = classType,
-                    // Define the maximum amount of data that HealthConnect can return in a single request
-                    timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
-                )
-                
-                var response = healthConnectClient.readRecords(request)
-                var pageToken = response.pageToken
-                
-                // Add the records from the initial response to the records list
-                records.addAll(response.records)
-
-                // Continue making requests and fetching records while there is a page token
-                while (!pageToken.isNullOrEmpty()) {
-                    request = ReadRecordsRequest(
+                    // Set up the initial request to read health records with specified parameters
+                    var request = ReadRecordsRequest(
                         recordType = classType,
+                        // Define the maximum amount of data that HealthConnect can return in a single request
                         timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
-                        pageToken = pageToken
                     )
-                    response = healthConnectClient.readRecords(request)
 
-                    pageToken = response.pageToken
+                    var response = healthConnectClient.readRecords(request)
+                    var pageToken = response.pageToken
+
+                    // Add the records from the initial response to the records list
                     records.addAll(response.records)
-                }
 
-                // Workout needs distance and total calories burned too
-                if (dataType == WORKOUT) {
-                    for (rec in records) {
-                        val record = rec as ExerciseSessionRecord
-                        val distanceRequest = healthConnectClient.readRecords(
-                            ReadRecordsRequest(
-                                recordType = DistanceRecord::class,
-                                timeRangeFilter = TimeRangeFilter.between(
-                                    record.startTime,
-                                    record.endTime,
-                                ),
-                            ),
+                    // Continue making requests and fetching records while there is a page token
+                    while (!pageToken.isNullOrEmpty()) {
+                        request = ReadRecordsRequest(
+                            recordType = classType,
+                            timeRangeFilter = TimeRangeFilter.between(startTime, endTime),
+                            pageToken = pageToken
                         )
-                        var totalDistance = 0.0
-                        for (distanceRec in distanceRequest.records) {
-                            totalDistance += distanceRec.distance.inMeters
-                        }
+                        response = healthConnectClient.readRecords(request)
 
-                        val energyBurnedRequest = healthConnectClient.readRecords(
-                            ReadRecordsRequest(
-                                recordType = TotalCaloriesBurnedRecord::class,
-                                timeRangeFilter = TimeRangeFilter.between(
-                                    record.startTime,
-                                    record.endTime,
-                                ),
-                            ),
-                        )
-                        var totalEnergyBurned = 0.0
-                        for (energyBurnedRec in energyBurnedRequest.records) {
-                            totalEnergyBurned += energyBurnedRec.energy.inKilocalories
-                        }
-
-                        // val metadata = (rec as Record).metadata
-                        // Add final datapoint
-                        healthConnectData.add(
-                            // mapOf(
-                            mapOf<String, Any?>(
-                                "workoutActivityType" to (
-                                        workoutTypeMapHealthConnect.filterValues { it == record.exerciseType }.keys.firstOrNull()
-                                            ?: "OTHER"
-                                        ),
-                                "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
-                                "totalDistanceUnit" to "METER",
-                                "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,
-                                "totalEnergyBurnedUnit" to "KILOCALORIE",
-                                "unit" to "MINUTES",
-                                "date_from" to rec.startTime.toEpochMilli(),
-                                "date_to" to rec.endTime.toEpochMilli(),
-                                "source_id" to "",
-                                "source_name" to record.metadata.dataOrigin.packageName,
-                            ),
-                        )
+                        pageToken = response.pageToken
+                        records.addAll(response.records)
                     }
-                // Filter sleep stages for requested stage
-                }
-                else if (classType == SleepSessionRecord::class) {
-                    for (rec in response.records) {
-                        if (rec is SleepSessionRecord) {
-                            if (dataType == SLEEP_SESSION) {
-                                healthConnectData.addAll(convertRecord(rec, dataType))
+
+                    // Workout needs distance and total calories burned too
+                    if (dataType == WORKOUT) {
+                        for (rec in records) {
+                            val record = rec as ExerciseSessionRecord
+                            val distanceRequest = healthConnectClient.readRecords(
+                                ReadRecordsRequest(
+                                    recordType = DistanceRecord::class,
+                                    timeRangeFilter = TimeRangeFilter.between(
+                                        record.startTime,
+                                        record.endTime,
+                                    ),
+                                ),
+                            )
+                            var totalDistance = 0.0
+                            for (distanceRec in distanceRequest.records) {
+                                totalDistance += distanceRec.distance.inMeters
                             }
-                            else {
-                                for (recStage in rec.stages) {
-                                    if (dataType == MapSleepStageToType[recStage.stage]) {
-                                        healthConnectData.addAll(
-                                            convertRecordStage(
-                                                recStage, dataType,
-                                                rec.metadata.dataOrigin.packageName
+
+                            val energyBurnedRequest = healthConnectClient.readRecords(
+                                ReadRecordsRequest(
+                                    recordType = TotalCaloriesBurnedRecord::class,
+                                    timeRangeFilter = TimeRangeFilter.between(
+                                        record.startTime,
+                                        record.endTime,
+                                    ),
+                                ),
+                            )
+                            var totalEnergyBurned = 0.0
+                            for (energyBurnedRec in energyBurnedRequest.records) {
+                                totalEnergyBurned += energyBurnedRec.energy.inKilocalories
+                            }
+
+                            // val metadata = (rec as Record).metadata
+                            // Add final datapoint
+                            healthConnectData.add(
+                                // mapOf(
+                                mapOf<String, Any?>(
+                                    "workoutActivityType" to (
+                                            workoutTypeMapHealthConnect.filterValues { it == record.exerciseType }.keys.firstOrNull()
+                                                ?: "OTHER"
+                                            ),
+                                    "totalDistance" to if (totalDistance == 0.0) null else totalDistance,
+                                    "totalDistanceUnit" to "METER",
+                                    "totalEnergyBurned" to if (totalEnergyBurned == 0.0) null else totalEnergyBurned,
+                                    "totalEnergyBurnedUnit" to "KILOCALORIE",
+                                    "unit" to "MINUTES",
+                                    "date_from" to rec.startTime.toEpochMilli(),
+                                    "date_to" to rec.endTime.toEpochMilli(),
+                                    "source_id" to "",
+                                    "source_name" to record.metadata.dataOrigin.packageName,
+                                ),
+                            )
+                        }
+                        // Filter sleep stages for requested stage
+                    } else if (classType == SleepSessionRecord::class) {
+                        for (rec in response.records) {
+                            if (rec is SleepSessionRecord) {
+                                if (dataType == SLEEP_SESSION) {
+                                    healthConnectData.addAll(convertRecord(rec, dataType))
+                                } else {
+                                    for (recStage in rec.stages) {
+                                        if (dataType == MapSleepStageToType[recStage.stage]) {
+                                            healthConnectData.addAll(
+                                                convertRecordStage(
+                                                    recStage, dataType,
+                                                    rec.metadata.dataOrigin.packageName
+                                                )
                                             )
-                                        )
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                } else {
-                    for (rec in records) {
-                        healthConnectData.addAll(convertRecord(rec, dataType))
+                    } else {
+                        for (rec in records) {
+                            healthConnectData.addAll(convertRecord(rec, dataType))
+                        }
                     }
                 }
-            }
-            Handler(context!!.mainLooper).run { result.success(healthConnectData) }
+                Handler(context!!.mainLooper).run { result.success(healthConnectData) }
             } catch (e: Exception) {
                 Log.i(
                     "FLUTTER_HEALTH::ERROR",
@@ -1864,6 +1862,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) :
                 Log.e("FLUTTER_HEALTH::ERROR", Log.getStackTraceString(e))
                 result.success(null)
             }
+        }
     }
 
     fun convertRecordStage(stage: SleepSessionRecord.Stage, dataType: String, sourceName: String):
