@@ -40,13 +40,13 @@ android {
     lintOptions {
         disable 'InvalidPackage'
     }
-    
+    kotlinOptions {
+        jvmTarget = '17'
+    }
     namespace "dk.cachet.flutter_foreground_service"
 }
 
-kotlinOptions {
-    jvmTarget = '17'
-}
+
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
