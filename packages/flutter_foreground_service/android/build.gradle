@@ -26,7 +26,11 @@ apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 35
-
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
     }
@@ -36,7 +40,12 @@ android {
     lintOptions {
         disable 'InvalidPackage'
     }
+    
     namespace "dk.cachet.flutter_foreground_service"
+}
+
+kotlinOptions {
+    jvmTarget = '17'
 }
 
 dependencies {
